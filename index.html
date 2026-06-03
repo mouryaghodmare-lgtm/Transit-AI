@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Open Transit AI</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    >
+    <link rel="stylesheet" href="./styles.css?v=20260507-upgrade">
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Transit controls">
+        <header class="brand">
+          <div>
+            <p class="eyebrow">Delhi, India</p>
+            <h1>Open Transit AI</h1>
+          </div>
+          <span class="live-pill" id="live-pill">Ready</span>
+        </header>
+
+        <section class="panel panel-tight">
+          <div class="section-title">
+            <h2>Map</h2>
+            <select id="map-style" aria-label="Map style">
+              <option value="road">Road</option>
+              <option value="satellite">Satellite</option>
+            </select>
+          </div>
+          <div class="metric-grid">
+            <div>
+              <span>Cruise speed</span>
+              <strong>30 km/h</strong>
+            </div>
+            <div>
+              <span>Refresh</span>
+              <strong>2 sec</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>GTFS Static</h2>
+            <button id="load-demo" type="button">Demo</button>
+          </div>
+          <div class="file-grid">
+            <label>
+              <span>stop.txt / stops.txt</span>
+              <input id="file-stops" type="file" accept=".txt,.csv">
+            </label>
+            <label>
+              <span>stop_times.txt</span>
+              <input id="file-stop-times" type="file" accept=".txt,.csv">
+            </label>
+            <label>
+              <span>routes.txt</span>
+              <input id="file-routes" type="file" accept=".txt,.csv">
+            </label>
+            <label>
+              <span>trips.txt</span>
+              <input id="file-trips" type="file" accept=".txt,.csv">
+            </label>
+          </div>
+          <button id="load-files" class="wide-button" type="button">Load GTFS files</button>
+          <p class="status-text" id="feed-status">Demo feed is loaded automatically.</p>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Route</h2>
+            <button id="build-route" type="button">Build</button>
+          </div>
+          <label class="control-field">
+            <span>Routes</span>
+            <select id="route-select" multiple size="4"></select>
+          </label>
+          <div class="button-row">
+            <button id="export-route" type="button">Export route</button>
+            <label class="import-button">
+              Import route
+              <input id="import-route" type="file" accept=".json">
+            </label>
+          </div>
+          <p class="status-text" id="route-status">Route geometry is not built yet.</p>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Virtual Time</h2>
+            <button id="toggle-sim" type="button">Pause</button>
+          </div>
+          <div class="time-row">
+            <label>
+              <span>Clock</span>
+              <input id="time-input" type="time" step="1" value="08:00:00">
+            </label>
+            <button id="set-time" type="button">Set</button>
+          </div>
+          <label class="control-field">
+            <span>Scale <strong id="scale-readout">1.0x</strong></span>
+            <input id="time-scale" type="range" min="0" max="60" step="0.25" value="1">
+          </label>
+          <label class="control-field">
+            <span>Buses</span>
+            <input id="bus-count" type="number" min="2" max="18" value="8">
+          </label>
+          <button id="reset-buses" class="wide-button" type="button">Reset buses</button>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Traffic AI</h2>
+            <span class="panel-chip">All-day current delay</span>
+          </div>
+          <div id="traffic-summary" class="summary-card compact-summary"></div>
+          <h3>Delay Prediction</h3>
+          <div id="delay-graph" class="delay-graph"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>My Location</h2>
+            <button id="gps-pick-map" type="button">Pick on map</button>
+          </div>
+          <div class="edit-grid">
+            <label>
+              <span>Latitude</span>
+              <input id="gps-lat" type="number" step="0.000001" placeholder="28.62">
+            </label>
+            <label>
+              <span>Longitude</span>
+              <input id="gps-lon" type="number" step="0.000001" placeholder="77.23">
+            </label>
+          </div>
+          <button id="set-gps" class="wide-button" type="button">Set GPS location</button>
+          <div id="gps-status" class="list-stack compact-list">Set a GPS location to find the nearest stop and next bus.</div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Incident</h2>
+            <button id="incident-pick-map" type="button">Pick on map</button>
+          </div>
+          <label class="control-field">
+            <span>Type</span>
+            <select id="incident-type">
+              <option value="accident">Accident</option>
+              <option value="diversion">Diversion</option>
+              <option value="blocked">No available road</option>
+            </select>
+          </label>
+          <div class="edit-grid">
+            <label>
+              <span>Latitude</span>
+              <input id="incident-lat" type="number" step="0.000001" placeholder="28.62">
+            </label>
+            <label>
+              <span>Longitude</span>
+              <input id="incident-lon" type="number" step="0.000001" placeholder="77.23">
+            </label>
+          </div>
+          <label class="control-field">
+            <span>Severity</span>
+            <input id="incident-severity" type="range" min="1" max="3" step="1" value="2">
+          </label>
+          <div class="button-row">
+            <button id="add-incident" type="button">Plot incident</button>
+            <button id="clear-incidents" type="button">Clear incidents</button>
+          </div>
+          <p class="status-text" id="incident-status">Plot an accident, diversion, or blocked route segment.</p>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Medical Aid</h2>
+            <button id="send-emergency" type="button">Send alert</button>
+          </div>
+          <label class="control-field">
+            <span>Emergency source</span>
+            <select id="emergency-source">
+              <option value="bus">Selected bus</option>
+              <option value="gps">My GPS location</option>
+              <option value="incident">Latest incident</option>
+            </select>
+          </label>
+          <div id="emergency-status" class="list-stack compact-list">Emergency aid is ready. It will notify the nearest hospital and traffic headquarter.</div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title">
+            <h2>Breakdown</h2>
+            <button id="download-rt" type="button">GTFS RT JSON</button>
+          </div>
+          <label class="control-field">
+            <span>Bus</span>
+            <select id="bus-select"></select>
+          </label>
+          <div class="button-row">
+            <button id="break-bus" type="button">Breakdown</button>
+            <button id="recover-bus" type="button">Recover</button>
+            <button id="recover-all" type="button">Recover all</button>
+          </div>
+          <p class="status-text" id="control-status">Headway controller is waiting for a route.</p>
+        </section>
+
+        <section class="panel panel-scroll">
+          <div class="section-title">
+            <h2>Live System</h2>
+            <span id="clock-display">08:00:00</span>
+          </div>
+          <div id="route-summary" class="summary-card"></div>
+          <h3>Bus States</h3>
+          <div id="bus-list" class="list-stack"></div>
+          <h3>Next Bus At Stops</h3>
+          <div id="stop-eta-list" class="list-stack"></div>
+        </section>
+      </aside>
+
+      <section class="map-wrap" aria-label="Transit map">
+        <div id="map"></div>
+        <div class="map-legend" aria-label="Map legend">
+          <span><i class="legend-dot terminal"></i> Terminal</span>
+          <span><i class="legend-dot stop"></i> Stop</span>
+          <span><i class="legend-dot bus-normal"></i> Normal</span>
+          <span><i class="legend-dot bus-dwelling"></i> Dwelling</span>
+          <span><i class="legend-dot bus-holding"></i> Holding</span>
+          <span><i class="legend-dot bus-bunching"></i> Bunching</span>
+          <span><i class="legend-dot bus-gap"></i> Excess gap</span>
+          <span><i class="legend-dot bus-traffic"></i> Signal wait</span>
+          <span><i class="legend-gear"></i> Breakdown</span>
+          <span><i class="legend-signal"></i> Traffic signal</span>
+          <span><i class="legend-incident"></i> Incident</span>
+          <span><i class="legend-gps"></i> GPS</span>
+        </div>
+      </section>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="./app.js?v=20260507-upgrade"></script>
+  </body>
+</html>
